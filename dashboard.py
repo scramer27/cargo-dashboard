@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from streamlit.components.v1 import html
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -11,33 +12,58 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- Inject JavaScript to Detect Theme ---
-# This script detects the user's theme (light or dark) and stores it in Streamlit's session state
-st.markdown("""
+# --- Theme Detection and Logo Switching ---
+# Use a JS-based approach to get the theme and store it in session_state
+if 'theme' not in st.session_state:
+    st.session_state.theme = "light" # Default
+
+# JavaScript to detect the theme and send it back to Streamlit
+js_code = """
 <script>
-    const isDarkTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const theme = isDarkTheme ? 'dark' : 'light';
-    // Pass the theme to Streamlit's session state
-    window.localStorage.setItem('theme', theme);
-    Streamlit.setComponentValue(theme);
+const observer = new MutationObserver(function(mutations) {
+    for (const mutation of mutations) {
+        if (mutation.attributeName === 'class') {
+            const isDark = mutation.target.classList.contains('dark');
+            const theme = isDark ? 'dark' : 'light';
+            window.parent.Streamlit.setComponentValue(theme);
+            // We can disconnect after the first detection if we want
+            // observer.disconnect(); 
+        }
+    }
+});
+observer.observe(window.parent.document.body, { attributes: true });
+
+// Also send the initial theme
+const initialTheme = window.parent.document.body.classList.contains('dark') ? 'dark' : 'light';
+window.parent.Streamlit.setComponentValue(initialTheme);
 </script>
-""", unsafe_allow_html=True)
+"""
 
-# --- Determine Logo Based on Theme ---
-# Streamlit automatically applies the theme based on user settings
-theme = st.config.get_option("theme.base")  # Detect the theme (light or dark)
-logo_path = "cargo_logo_dark.png" if theme == "dark" else "cargo_logo.png"
+# Execute the JS and get the theme
+theme_from_js = html(js_code, height=0, width=0)
 
-# Debug: Print the detected theme
-st.write(f"Detected theme: {theme}")
+if theme_from_js:
+    st.session_state.theme = theme_from_js
 
-# --- Custom CSS for a Polished Look ---
+logo_path = "cargo_logo_dark.png" if st.session_state.theme == "dark" else "cargo_logo.png"
+
+# --- Custom CSS for a Polished Look & Responsiveness ---
 st.markdown("""
 <style>
     /* Increase base font size for the entire app */
     html, body, [class*="st-"] {
         font-size: 18px;
     }
+    
+    /* Responsive columns for KPI and Error tables */
+    @media (max-width: 1200px) {
+        div[data-testid="column"] {
+            flex-wrap: wrap;
+            flex: 1 1 100%; /* Allow columns to take full width and wrap */
+            min-width: 300px; /* Prevent columns from becoming too narrow */
+        }
+    }
+
     /* Increase font size for tables generated from pandas .to_html() */
     table {
         font-size: 1.1rem !important; /* Make table text larger */
