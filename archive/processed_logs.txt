@@ -1,4 +1,4 @@
-logs1.json
-logs3.json
-logs2.json
-logs4.json
+log1.json
+log4.json
+log2.json
+log3.json
