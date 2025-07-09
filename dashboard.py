@@ -11,6 +11,23 @@ st.set_page_config(
     layout="wide"
 )
 
+# --- Inject JavaScript to Detect Theme ---
+# This script detects the user's theme (light or dark) and stores it in Streamlit's session state
+st.markdown("""
+<script>
+    const isDarkTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const theme = isDarkTheme ? 'dark' : 'light';
+    // Pass the theme to Streamlit's session state
+    window.localStorage.setItem('theme', theme);
+    Streamlit.setComponentValue(theme);
+</script>
+""", unsafe_allow_html=True)
+
+# --- Determine Logo Based on Theme ---
+# Default to light theme if no theme is detected
+theme = st.session_state.get('theme', 'light')
+logo_path = "cargo_logo_dark.png" if theme == "dark" else "cargo_logo.png"
+
 # --- Custom CSS for a Polished Look ---
 st.markdown("""
 <style>
@@ -83,7 +100,7 @@ if not data:
     st.stop()
 
 # Display the logo and the title underneath
-st.image("cargo_logo.png", width=400)
+st.image(logo_path, width=400)
 st.title("Performance Dashboard")
 
 # --- Check for required sheets ---
