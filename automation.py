@@ -2,6 +2,7 @@ import os
 import subprocess
 import shutil
 from datetime import datetime
+import json
 
 # Paths
 LOGS_FOLDER = "logs"
@@ -9,6 +10,18 @@ ARCHIVE_FOLDER = "archive"
 MASTER_REPORT = "master_report.xlsx"
 REPORT_UPDATER = "report_updater.py"
 PROCESSED_LOGS_FILE = os.path.join(ARCHIVE_FOLDER, "processed_logs.txt")
+
+def get_first_timestamp(log_path):
+    """Extracts the first timestamp from a JSONL log file."""
+    try:
+        with open(log_path, 'r') as f:
+            first_line = f.readline()
+            if first_line:
+                log_entry = json.loads(first_line)
+                return log_entry.get('timestamp')
+    except (IOError, json.JSONDecodeError, IndexError):
+        pass
+    return None
 
 def load_processed_logs():
     """Load the list of already processed log files."""
@@ -40,18 +53,25 @@ def process_new_logs():
     processed_logs = load_processed_logs()
 
     # Find all log files in the logs folder
-    log_files = [f for f in os.listdir(LOGS_FOLDER) if f.endswith(".json")]
+    log_files_to_process = []
+    for f in os.listdir(LOGS_FOLDER):
+        if f.endswith(".json") and f not in processed_logs:
+            log_path = os.path.join(LOGS_FOLDER, f)
+            timestamp = get_first_timestamp(log_path)
+            if timestamp:
+                log_files_to_process.append((timestamp, f))
+
+    # Sort files chronologically
+    log_files_to_process.sort()
+
+    log_files = [f for timestamp, f in log_files_to_process]
 
     if not log_files:
-        print("No log files found.")
+        print("No new log files found to process.")
         return
 
     # Process each log file
     for log_file in log_files:
-        if log_file in processed_logs:
-            print(f"Skipping already processed log file: {log_file}")
-            continue
-
         log_path = os.path.join(LOGS_FOLDER, log_file)
         print(f"Processing log file: {log_file}...")
 

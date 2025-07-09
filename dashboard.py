@@ -24,9 +24,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Determine Logo Based on Theme ---
-# Default to light theme if no theme is detected
-theme = st.session_state.get('theme', 'light')
+# Streamlit automatically applies the theme based on user settings
+theme = st.config.get_option("theme.base")  # Detect the theme (light or dark)
 logo_path = "cargo_logo_dark.png" if theme == "dark" else "cargo_logo.png"
+
+# Debug: Print the detected theme
+st.write(f"Detected theme: {theme}")
 
 # --- Custom CSS for a Polished Look ---
 st.markdown("""
