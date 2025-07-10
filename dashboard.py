@@ -143,6 +143,10 @@ if not all(sheet in data for sheet in required_sheets):
 summary_df = data['Master Summary'].copy()
 error_summary_df = data.get('Error Summary', pd.DataFrame())
 
+# Rename 'Day' to 'Log' to match user request
+if 'Day' in summary_df.columns:
+    summary_df.rename(columns={'Day': 'Log'}, inplace=True)
+
 # Convert relevant columns to numeric, coercing errors
 numeric_cols = [
     'Stow Avg (s)', 'Retrieve Avg (s)', 'Read Label Avg (s)', 'Throughput (pkg/hr)',
@@ -342,38 +346,40 @@ else:
 # --- Trend Charts ---
 st.header("Performance Trends", divider='orange')
 if len(summary_df) > 1:
-    # Ensure Day column is integer for axis ticks
-    summary_df['Day'] = summary_df['Day'].astype(int)
+    # Ensure Log column is integer for axis ticks
+    if 'Log' in summary_df.columns:
+        summary_df['Log'] = summary_df['Log'].astype(int)
     
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("<h4>Average Process Times</h4>", unsafe_allow_html=True)
-        fig = px.line(summary_df, x='Day', y=['Stow Avg (s)', 'Retrieve Avg (s)', 'Read Label Avg (s)'], markers=True)
+        fig = px.line(summary_df, x='Log', y=['Stow Avg (s)', 'Retrieve Avg (s)', 'Read Label Avg (s)'], markers=True)
         fig.update_xaxes(dtick=1) # Set x-axis ticks to integers
+        fig.update_yaxes(title_text='Time (s)')
         st.plotly_chart(fig, use_container_width=True)
 
         st.markdown("<h4>Packages Stowed vs. Attempts</h4>", unsafe_allow_html=True)
         fig2 = go.Figure(data=[
-            go.Bar(name='Packages Stowed', x=summary_df['Day'], y=summary_df['Packages Stowed']),
-            go.Bar(name='Stow Attempts', x=summary_df['Day'], y=summary_df['Stow Attempts'])
+            go.Bar(name='Packages Stowed', x=summary_df['Log'], y=summary_df['Packages Stowed']),
+            go.Bar(name='Stow Attempts', x=summary_df['Log'], y=summary_df['Stow Attempts'])
         ])
-        fig2.update_layout(barmode='group')
-        fig2.update_xaxes(dtick=1)
+        fig2.update_layout(barmode='group', yaxis_title='Count')
+        fig2.update_xaxes(dtick=1, title_text='Log')
         st.plotly_chart(fig2, use_container_width=True)
 
     with col2:
         st.markdown("<h4>Throughput Over Time</h4>", unsafe_allow_html=True)
-        fig3 = px.line(summary_df, x='Day', y='Throughput (pkg/hr)', markers=True)
+        fig3 = px.line(summary_df, x='Log', y='Throughput (pkg/hr)', markers=True)
         fig3.update_xaxes(dtick=1)
         st.plotly_chart(fig3, use_container_width=True)
 
         st.markdown("<h4>Packages Retrieved vs. Attempts</h4>", unsafe_allow_html=True)
         fig4 = go.Figure(data=[
-            go.Bar(name='Packages Retrieved', x=summary_df['Day'], y=summary_df['Packages Retrieved']),
-            go.Bar(name='Retrieval Attempts', x=summary_df['Day'], y=summary_df['Retrieval Attempts'])
+            go.Bar(name='Packages Retrieved', x=summary_df['Log'], y=summary_df['Packages Retrieved']),
+            go.Bar(name='Retrieval Attempts', x=summary_df['Log'], y=summary_df['Retrieval Attempts'])
         ])
-        fig4.update_layout(barmode='group')
-        fig4.update_xaxes(dtick=1)
+        fig4.update_layout(barmode='group', yaxis_title='Count')
+        fig4.update_xaxes(dtick=1, title_text='Log')
         st.plotly_chart(fig4, use_container_width=True)
 else:
     st.info("Need at least two days of data to show trend charts.")
