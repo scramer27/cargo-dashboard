@@ -146,7 +146,7 @@ def process_log_file(log_file_path):
                 total_time = get_total_time(log_entry.get("event_total_time"))
                 
                 if event_label == "Read Label Callback":
-                    if is_success and total_time is not None:
+                    if total_time is not None:
                         all_read_label_events.append({"Timestamp": timestamp, "Event Label": event_label, "Time (s)": total_time})
                 elif event_label == "Conveyable Stow": # catches both conveyable and nonconveyable stows
                     stow_attempts += 1
@@ -205,17 +205,9 @@ def process_log_file(log_file_path):
             except (json.JSONDecodeError, TypeError):
                 continue
 
-    # --- DataFrame Creation ---
-    # Ensure DataFrames have the correct columns even if they are empty
-    # This prevents errors downstream if a day has zero successful events of one type.
-    event_columns = ['Timestamp', 'Event Label', 'Time (s)']
-    df_stow = pd.DataFrame(all_stow_events, columns=event_columns)
-    
-    retrieve_columns = ['Timestamp', 'Event Label', 'Time (s)', 'Package ID']
-    df_retrieve_raw = pd.DataFrame(all_retrieve_events, columns=retrieve_columns)
-    
-    df_read_label = pd.DataFrame(all_read_label_events, columns=event_columns)
-    
+    df_stow = pd.DataFrame(all_stow_events)
+    df_retrieve_raw = pd.DataFrame(all_retrieve_events) # this is the detailed, correct data
+    df_read_label = pd.DataFrame(all_read_label_events)
     df_failures = pd.DataFrame(sorted(file_failures, key=lambda x: x.get('Timestamp') or ''))
 
     # create a summary of error counts
