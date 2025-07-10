@@ -3,6 +3,12 @@ import re
 from collections import Counter, defaultdict
 from datetime import datetime
 import pandas as pd
+import openpyxl
+from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.chart import BarChart, Reference
+import sys
+import os
 
 def get_total_time(time_value):
     if isinstance(time_value, list) and time_value:
@@ -73,28 +79,34 @@ def calculate_active_time_hours(events):
             
     return active_duration_seconds / 3600.0
 
-def _normalize_error_message(message):
-    """groups similar error messages together by simplifying them."""
-    if not isinstance(message, str):
+def _normalize_error_message(error_message):
+    """Normalizes a raw error message into a standardized category."""
+    # Use .lower() for case-insensitive matching
+    lower_message = error_message.lower()
+
+    if "waypoint execution failed" in lower_message:
+        return "Motion: Waypoint Execution Failed"
+    if "vacuum not achieved" in lower_message:
+        return "Gripper: Vacuum Failure"
+    if "package length is too long" in lower_message or "package height is too high" in lower_message:
+        return "Vision: Package Dimension Error"
+    if "sag height was not found" in lower_message:
+        return "Vision: Sag Height Not Found"
+    if "failed to find package" in lower_message:
+        return "Vision: Package Not Found"
+    if "no contours found" in lower_message:
+        return "Vision: No Contours Found"
+    if "failed to extract address" in lower_message:
+        return "Vision: Address Extraction Failed"
+    if "failed to execute pick and place" in lower_message:
+        return "Motion: Pick/Place Failed"
+    if "failed to execute pick and raise" in lower_message:
+        return "Motion: Pick/Raise Failed"
+    if "error message not found" in lower_message:
         return "Unknown Error"
-
-    # categorize address extraction failures based on their cause
-    if "Failed to extract address" in message:
-        if "HTTPConnectionPool" in message or "Read timed out" in message or "Connection refused" in message:
-            return "Failed to extract address (Network Error)"
-        if "Internal Server Error" in message:
-            return "Failed to extract address (Server Error)"
-
-    # replace numbers, file paths, and other specifics to group similar errors
-    message = re.sub(r'\b\d+\b', 'X', message)
-    message = re.sub(r'\b\d+\.\d+\b', 'X.X', message)
-    message = re.sub(r'(/[\w./-]+)', '/path/to/file', message)
-    message = re.sub(r': HTTPConnectionPool.*', '', message)
-    message = re.sub(r'contour(s)?', 'contour(s)', message)
-    message = re.sub(r'\.\s*Measured\s+X\s+mm$', '.', message)
-    message = re.sub(r'\s*Did package fully clear the platform\?$', '', message)
     
-    return message.strip()
+    # Fallback for any other message that doesn't match the rules above
+    return "Uncategorized Error"
 
 def process_log_file(log_file_path):
     """

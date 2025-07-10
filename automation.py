@@ -94,9 +94,9 @@ def process_new_logs():
         save_processed_log(log_file)
 
 def push_to_github():
-    """Push the updated master_report.xlsx to GitHub."""
-    # Stage the updated master_report.xlsx
-    subprocess.run(["git", "add", MASTER_REPORT], check=True)
+    """Push the updated report and archived logs to GitHub."""
+    # Stage the updated master_report.xlsx and the entire archive folder
+    subprocess.run(["git", "add", MASTER_REPORT, ARCHIVE_FOLDER], check=True)
 
     # Check if there are any changes to commit
     result = subprocess.run(["git", "diff", "--cached", "--quiet"])
@@ -104,9 +104,9 @@ def push_to_github():
         print("No changes to commit.")
         return
 
-    # Commit the changes
+    # Commit the changes with a more descriptive message
     subprocess.run(
-        ["git", "commit", "-m", "chore: Update master_report.xlsx with new log data"],
+        ["git", "commit", "-m", "feat: Process new log data and update report"],
         check=True
     )
 
