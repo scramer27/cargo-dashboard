@@ -102,14 +102,14 @@ def _normalize_error_message(error_message):
     # Vision System Failures
     if "failed to extract address" in lower_message:
         return "Vision: Address Extraction Failed"
-    if "package length is too long" in lower_message or "package height is too high" in lower_message:
-        return "Vision: Package Dimension Error"
     if "sag height was not found" in lower_message:
         return "Vision: Sag Height Not Found"
     if "failed to find package" in lower_message or "no contour" in lower_message:
         return "Vision: Package Not Found"
 
     # General/Unknown
+    if "package length is too long" in lower_message or "package height is too high" in lower_message:
+        return "Physical Constraints: Package Dimension Error"
     if "error message not found" in lower_message:
         return "Unknown: No Error Message"
     
