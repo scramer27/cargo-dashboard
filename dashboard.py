@@ -387,8 +387,25 @@ else:
 # --- Day-by-Day Table ---
 st.header("Daily Performance", divider='orange')
 st.subheader("Day-by-Day Performance")
-st.dataframe(summary_df.style.format(precision=2), use_container_width=True, hide_index=True)
 
+# Create a display-ready version of the dataframe to ensure 'N/A' is shown correctly.
+display_df = summary_df.copy()
+
+# Define which columns need specific decimal formatting.
+cols_to_format = [
+    'Stow Avg (s)', 'Retrieve Avg (s)', 'Read Label Avg (s)', 
+    'Throughput (pkg/hr)', 'Stow Driver Shift Time (hr)', 
+    'Retrieve Driver Shift Time (hr)'
+]
+
+# Apply formatting: 2 decimal places for numbers, and 'N/A' for any missing values.
+for col in cols_to_format:
+    if col in display_df.columns:
+        # The summary_df was already converted to numeric, so we can safely format.
+        display_df[col] = display_df[col].apply(lambda x: f'{x:.2f}' if pd.notna(x) else 'N/A')
+
+# Display the fully formatted dataframe.
+st.dataframe(display_df, use_container_width=True, hide_index=True)
 
 # --- Daily Detail Section ---
 st.subheader("Daily Detailed Report")
