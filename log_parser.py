@@ -81,31 +81,39 @@ def calculate_active_time_hours(events):
 
 def _normalize_error_message(error_message):
     """Normalizes a raw error message into a standardized category."""
-    # Use .lower() for case-insensitive matching
     lower_message = error_message.lower()
 
+    # Motion & Pick/Place Failures
+    if "failed to execute pick and place" in lower_message or "failed in attempt to pick and place" in lower_message:
+        return "Motion: Pick/Place Execution Failed"
+    if "failed to execute pick and raise" in lower_message or "failed to pick and raise" in lower_message:
+        return "Motion: Pick/Raise Execution Failed"
     if "waypoint execution failed" in lower_message:
         return "Motion: Waypoint Execution Failed"
+    
+    # Gripper Failures
     if "vacuum not achieved" in lower_message:
         return "Gripper: Vacuum Failure"
+
+    # Packing Planner Failures
+    if "failed to find placement" in lower_message or "unable to find a place" in lower_message:
+        return "Packing: Placement Failure"
+
+    # Vision System Failures
+    if "failed to extract address" in lower_message:
+        return "Vision: Address Extraction Failed"
     if "package length is too long" in lower_message or "package height is too high" in lower_message:
         return "Vision: Package Dimension Error"
     if "sag height was not found" in lower_message:
         return "Vision: Sag Height Not Found"
-    if "failed to find package" in lower_message:
+    if "failed to find package" in lower_message or "no contour" in lower_message:
         return "Vision: Package Not Found"
-    if "no contours found" in lower_message:
-        return "Vision: No Contours Found"
-    if "failed to extract address" in lower_message:
-        return "Vision: Address Extraction Failed"
-    if "failed to execute pick and place" in lower_message:
-        return "Motion: Pick/Place Failed"
-    if "failed to execute pick and raise" in lower_message:
-        return "Motion: Pick/Raise Failed"
+
+    # General/Unknown
     if "error message not found" in lower_message:
-        return "Unknown Error"
+        return "Unknown: No Error Message"
     
-    # Fallback for any other message that doesn't match the rules above
+    # Fallback for any other message
     return "Uncategorized Error"
 
 def process_log_file(log_file_path):
