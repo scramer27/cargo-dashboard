@@ -91,9 +91,9 @@ def _normalize_error_message(error_message):
     if "waypoint execution failed" in lower_message:
         return "Motion: Waypoint Execution Failed"
     
-    # Gripper Failures
+    # End Effector Failures
     if "vacuum not achieved" in lower_message:
-        return "Gripper: Vacuum Failure"
+        return "End Effector: Vacuum Failure"
 
     # Packing Planner Failures
     if "failed to find placement" in lower_message or "unable to find a place" in lower_message:
