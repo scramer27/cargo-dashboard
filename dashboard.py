@@ -409,15 +409,29 @@ if day_sheets:
 
         # --- Extract Event Logs and find the last row for positioning the error log ---
         stow_events = day_df.iloc[:event_log_end_row, 0:3].dropna(how='all')
-        # Remove Package ID column by only selecting the first 3 columns of the retrieve block
         retrieve_events = day_df.iloc[:event_log_end_row, 3:6].dropna(how='all')
         read_label_events = day_df.iloc[:event_log_end_row, 8:11].dropna(how='all')
 
         # --- Standardize Column Headers ---
         clean_headers = ['Timestamp', 'Event Label', 'Time (s)']
-        stow_events.columns = clean_headers
-        retrieve_events.columns = clean_headers
-        read_label_events.columns = clean_headers
+        
+        if stow_events.empty:
+            stow_events = pd.DataFrame([['N/A', 'N/A', 'N/A']], columns=clean_headers)
+        else:
+            stow_events.columns = clean_headers
+
+        if retrieve_events.empty:
+            retrieve_events = pd.DataFrame([['N/A', 'N/A', 'N/A']], columns=clean_headers)
+        else:
+            retrieve_events.columns = clean_headers
+
+        if read_label_events.empty:
+            read_label_events = pd.DataFrame([['N/A', 'N/A', 'N/A']], columns=clean_headers)
+        else:
+            if read_label_events.shape[1] == 3:
+                read_label_events.columns = clean_headers
+            else:
+                read_label_events = pd.DataFrame([['N/A', 'N/A', 'N/A']], columns=clean_headers)
 
         last_stow_idx = stow_events.index[-1] if not stow_events.empty else -1
         last_retrieve_idx = retrieve_events.index[-1] if not retrieve_events.empty else -1
@@ -430,13 +444,17 @@ if day_sheets:
         col1, col2, col3 = st.columns(3)
 
         with col1:
+            st.markdown("<h4>Stow Summary</h4>", unsafe_allow_html=True)
             if not summary_start_indices.empty:
-                st.markdown("<h4>Stow Summary</h4>", unsafe_allow_html=True)
                 summary_start_row = summary_start_indices.min()
-                # Slice from 'Average' down 3 rows, and set custom headers
                 stow_summary_df = day_df.iloc[summary_start_row:summary_start_row+3, 0:2].dropna(how='all', axis=1).reset_index(drop=True)
-                stow_summary_df.columns = ["Metric", "Time (s)"]
-                st.dataframe(stow_summary_df, use_container_width=True, hide_index=True)
+                if stow_summary_df.shape[1] == 2:
+                    stow_summary_df.columns = ["Metric", "Time (s)"]
+                else:
+                    stow_summary_df = pd.DataFrame({'Metric': ['Average', 'Min', 'Max'], 'Time (s)': ['N/A', 'N/A', 'N/A']})
+            else:
+                stow_summary_df = pd.DataFrame({'Metric': ['Average', 'Min', 'Max'], 'Time (s)': ['N/A', 'N/A', 'N/A']})
+            st.dataframe(stow_summary_df, use_container_width=True, hide_index=True)
             
             st.markdown("<h4>Stow Events</h4>", unsafe_allow_html=True)
             stow_df_display = stow_events.reset_index(drop=True)
@@ -445,12 +463,17 @@ if day_sheets:
             st.dataframe(stow_df_display, use_container_width=True)
 
         with col2:
+            st.markdown("<h4>Retrieve Summary</h4>", unsafe_allow_html=True)
             if not summary_start_indices.empty:
-                st.markdown("<h4>Retrieve Summary</h4>", unsafe_allow_html=True)
                 summary_start_row = summary_start_indices.min()
                 retrieve_summary_df = day_df.iloc[summary_start_row:summary_start_row+3, 3:5].dropna(how='all', axis=1).reset_index(drop=True)
-                retrieve_summary_df.columns = ["Metric", "Time (s)"]
-                st.dataframe(retrieve_summary_df, use_container_width=True, hide_index=True)
+                if retrieve_summary_df.shape[1] == 2:
+                    retrieve_summary_df.columns = ["Metric", "Time (s)"]
+                else:
+                    retrieve_summary_df = pd.DataFrame({'Metric': ['Average', 'Min', 'Max'], 'Time (s)': ['N/A', 'N/A', 'N/A']})
+            else:
+                retrieve_summary_df = pd.DataFrame({'Metric': ['Average', 'Min', 'Max'], 'Time (s)': ['N/A', 'N/A', 'N/A']})
+            st.dataframe(retrieve_summary_df, use_container_width=True, hide_index=True)
 
             st.markdown("<h4>Retrieve Events</h4>", unsafe_allow_html=True)
             retrieve_df_display = retrieve_events.reset_index(drop=True)
@@ -459,12 +482,17 @@ if day_sheets:
             st.dataframe(retrieve_df_display, use_container_width=True)
 
         with col3:
+            st.markdown("<h4>Read Label Summary</h4>", unsafe_allow_html=True)
             if not summary_start_indices.empty:
-                st.markdown("<h4>Read Label Summary</h4>", unsafe_allow_html=True)
                 summary_start_row = summary_start_indices.min()
                 read_label_summary_df = day_df.iloc[summary_start_row:summary_start_row+3, 8:10].dropna(how='all', axis=1).reset_index(drop=True)
-                read_label_summary_df.columns = ["Metric", "Time (s)"]
-                st.dataframe(read_label_summary_df, use_container_width=True, hide_index=True)
+                if read_label_summary_df.shape[1] == 2:
+                    read_label_summary_df.columns = ["Metric", "Time (s)"]
+                else:
+                    read_label_summary_df = pd.DataFrame({'Metric': ['Average', 'Min', 'Max'], 'Time (s)': ['N/A', 'N/A', 'N/A']})
+            else:
+                read_label_summary_df = pd.DataFrame({'Metric': ['Average', 'Min', 'Max'], 'Time (s)': ['N/A', 'N/A', 'N/A']})
+            st.dataframe(read_label_summary_df, use_container_width=True, hide_index=True)
 
             st.markdown("<h4>Read Label Events</h4>", unsafe_allow_html=True)
             read_label_df_display = read_label_events.reset_index(drop=True)
@@ -479,17 +507,31 @@ if day_sheets:
             error_start_row = furthest_down_row + 7 # Start 7 rows down
             
             # Extract the block of potential error data
-            error_block = day_df.iloc[error_start_row:, 0:3]
+            error_block = day_df.iloc[error_start_row:]
             
             # Find the first completely blank row to mark the end of the table
             end_row_indices = error_block.index[error_block.isnull().all(axis=1)]
             error_end_row = end_row_indices.min() if not end_row_indices.empty else len(day_df)
             
-            error_df = day_df.iloc[error_start_row:error_end_row, 0:3].dropna(how='all')
+            # Dynamically find the start of the error table instead of assuming it's at column 0
+            potential_error_df = day_df.iloc[error_start_row:error_end_row]
+            
+            # Find the first column that is not entirely empty
+            first_valid_col = 0
+            for col in range(potential_error_df.shape[1]):
+                if not potential_error_df.iloc[:, col].isnull().all():
+                    first_valid_col = col
+                    break
+            
+            # Select the 3 columns of the error table from the dynamic start
+            error_df = potential_error_df.iloc[:, first_valid_col:first_valid_col+3].dropna(how='all')
 
-            if not error_df.empty:
-                error_df.columns = error_df.iloc[0].astype(str)
-                error_df = error_df[1:].reset_index(drop=True)
+            if not error_df.empty and error_df.shape[1] == 3:
+                # Check if the first row looks like headers before assigning
+                if not pd.api.types.is_numeric_dtype(error_df.iloc[0, 0]) and isinstance(error_df.iloc[0, 0], str):
+                    error_df.columns = error_df.iloc[0].astype(str)
+                    error_df = error_df[1:].reset_index(drop=True)
+                
                 error_df.index = error_df.index + 1
                 error_df.index.name = '#'
                 st.dataframe(error_df, use_container_width=True)

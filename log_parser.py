@@ -146,7 +146,9 @@ def process_log_file(log_file_path):
                 total_time = get_total_time(log_entry.get("event_total_time"))
                 
                 if event_label == "Read Label Callback":
-                    if total_time is not None:
+                    # FIX: Only count successful events for time statistics.
+                    # Failures will be captured by the 'if not is_success' block below.
+                    if is_success and total_time is not None:
                         all_read_label_events.append({"Timestamp": timestamp, "Event Label": event_label, "Time (s)": total_time})
                 elif event_label == "Conveyable Stow": # catches both conveyable and nonconveyable stows
                     stow_attempts += 1
