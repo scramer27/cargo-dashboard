@@ -3,3 +3,4 @@ log2.json
 log3.json
 log4.json
 logs_20250709_165937.json
+logs (1).json
