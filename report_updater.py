@@ -129,7 +129,7 @@ def apply_cell_style(cell):
                          top=Side(style='thin'), 
                          bottom=Side(style='thin'))
 
-def update_master_report(log_file_paths, excel_path):
+def update_master_report(log_file_paths, excel_path, target_sheet_name):
     """processes logs and updates the master excel workbook with new data and charts."""
     file_exists = os.path.exists(excel_path)
     master_summary_df = pd.DataFrame()
@@ -139,7 +139,8 @@ def update_master_report(log_file_paths, excel_path):
     if file_exists:
         try:
             xls = pd.ExcelFile(excel_path)
-            master_summary_df = pd.read_excel(xls, sheet_name='Master Summary')
+            if target_sheet_name in xls.sheet_names:
+                master_summary_df = pd.read_excel(xls, sheet_name=target_sheet_name)
             if 'Error Summary' in xls.sheet_names:
                 error_summary_df = pd.read_excel(xls, sheet_name='Error Summary')
             for sheet_name in xls.sheet_names:
@@ -191,16 +192,21 @@ def update_master_report(log_file_paths, excel_path):
     updated_summary_df = updated_summary_df.reindex(columns=cols)
 
     with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
-        updated_summary_df.to_excel(writer, sheet_name='Master Summary', index=False)
+        # Write the specific summary to its target sheet
+        updated_summary_df.to_excel(writer, sheet_name=target_sheet_name, index=False)
+        
+        # Write other sheets that might exist
+        book = writer.book
+        for sheet_name, df in existing_day_sheets.items():
+            if sheet_name not in book.sheetnames:
+                 df.to_excel(writer, sheet_name=sheet_name, index=False, header=False)
+
         if not updated_error_summary_df.empty:
             # reorder columns to have day and date first
             if 'Day' in updated_error_summary_df.columns:
                 cols = ['Day', 'Date'] + [c for c in updated_error_summary_df.columns if c not in ['Day', 'Date']]
                 updated_error_summary_df = updated_error_summary_df[cols]
             updated_error_summary_df.to_excel(writer, sheet_name='Error Summary', index=False)
-
-        for sheet_name, df in existing_day_sheets.items():
-            df.to_excel(writer, sheet_name=sheet_name, index=False, header=False)
 
         for daily_data in new_daily_data:
             sheet_name = f"Day {daily_data['summary']['Day']}"
@@ -242,9 +248,10 @@ def update_master_report(log_file_paths, excel_path):
     wb = load_workbook(excel_path)
     
     # style master summary
-    ws_summary = wb['Master Summary']
-    for col in range(1, len(updated_summary_df.columns) + 1):
-        apply_cell_style(ws_summary.cell(row=1, column=col))
+    if target_sheet_name in wb.sheetnames:
+        ws_summary = wb[target_sheet_name]
+        for col in range(1, len(updated_summary_df.columns) + 1):
+            apply_cell_style(ws_summary.cell(row=1, column=col))
 
     # style and add charts to all day sheets
     for sheet_name in wb.sheetnames:
@@ -306,58 +313,59 @@ def update_master_report(log_file_paths, excel_path):
                 ws_day.add_chart(chart, f"E{chart_row}")
 
     # add final charts to master summary
-    ws = wb['Master Summary']
-    # convert data to numeric for charting
-    for col_idx, col_name in enumerate(updated_summary_df.columns, 1):
-        if '(s)' in col_name or 'Stowed' in col_name or 'Attempts' in col_name or 'Retrieved' in col_name or 'Throughput' in col_name or 'Errors' in col_name:
-             for row_idx, value in enumerate(updated_summary_df[col_name], 2):
-                try:
-                    ws.cell(row=row_idx, column=col_idx).value = float(value)
-                except (ValueError, TypeError):
-                    continue # keep 'n/a' as is
+    if target_sheet_name in wb.sheetnames:
+        ws = wb[target_sheet_name]
+        # convert data to numeric for charting
+        for col_idx, col_name in enumerate(updated_summary_df.columns, 1):
+            if '(s)' in col_name or 'Stowed' in col_name or 'Attempts' in col_name or 'Retrieved' in col_name or 'Throughput' in col_name or 'Errors' in col_name:
+                 for row_idx, value in enumerate(updated_summary_df[col_name], 2):
+                    try:
+                        ws.cell(row=row_idx, column=col_idx).value = float(value)
+                    except (ValueError, TypeError):
+                        continue # keep 'n/a' as is
 
-    # chart 1: average times
-    chart1 = LineChart()
-    chart1.title = "Average Event Times Over Time"
-    chart1.y_axis.title = "Time (s)"
-    chart1.x_axis.title = "Day"
-    
-    data1 = Reference(ws, min_col=3, max_col=5, min_row=1, max_row=ws.max_row)
-    cats1 = Reference(ws, min_col=1, min_row=2, max_row=ws.max_row)
-    chart1.add_data(data1, titles_from_data=True)
-    chart1.set_categories(cats1)
-    
-    ws.add_chart(chart1, "A" + str(ws.max_row + 2))
+        # chart 1: average times
+        chart1 = LineChart()
+        chart1.title = "Average Event Times Over Time"
+        chart1.y_axis.title = "Time (s)"
+        chart1.x_axis.title = "Day"
+        
+        data1 = Reference(ws, min_col=3, max_col=5, min_row=1, max_row=ws.max_row)
+        cats1 = Reference(ws, min_col=1, min_row=2, max_row=ws.max_row)
+        chart1.add_data(data1, titles_from_data=True)
+        chart1.set_categories(cats1)
+        
+        ws.add_chart(chart1, "A" + str(ws.max_row + 2))
 
-    # chart 2: throughput and errors
-    chart2 = LineChart()
-    chart2.title = "Throughput and Errors Over Time"
-    chart2.x_axis.title = "Day"
-    chart2.y_axis.title = "Throughput (pkg/hr)"
+        # chart 2: throughput and errors
+        chart2 = LineChart()
+        chart2.title = "Throughput and Errors Over Time"
+        chart2.x_axis.title = "Day"
+        chart2.y_axis.title = "Throughput (pkg/hr)"
 
-    # throughput data
-    data_thr = Reference(ws, min_col=10, min_row=1, max_row=ws.max_row)
-    chart2.add_data(data_thr, titles_from_data=True)
-    chart2.set_categories(cats1)
+        # throughput data
+        data_thr = Reference(ws, min_col=10, min_row=1, max_row=ws.max_row)
+        chart2.add_data(data_thr, titles_from_data=True)
+        chart2.set_categories(cats1)
 
-    # create a second chart for the errors on a secondary axis
-    chart_err = LineChart()
-    data_err = Reference(ws, min_col=11, min_row=1, max_row=ws.max_row)
-    chart_err.add_data(data_err, titles_from_data=True)
-    chart_err.y_axis.axId = 200
-    chart_err.y_axis.title = "Total Errors"
-    
-    # the secondary chart's x-axis must also be on the secondary axis group
-    # and should be hidden so it doesn't overlap with the primary
-    chart_err.y_axis.crosses = "max"
-    chart_err.x_axis.axId = 200
-    chart_err.x_axis.hidden = True
-    
-    chart2 += chart_err # combine the charts
-    
-    ws.add_chart(chart2, "J" + str(ws.max_row + 2))
-    
-    wb.move_sheet(ws, offset=-len(wb.sheetnames))
+        # create a second chart for the errors on a secondary axis
+        chart_err = LineChart()
+        data_err = Reference(ws, min_col=11, min_row=1, max_row=ws.max_row)
+        chart_err.add_data(data_err, titles_from_data=True)
+        chart_err.y_axis.axId = 200
+        chart_err.y_axis.title = "Total Errors"
+        
+        # the secondary chart's x-axis must also be on the secondary axis group
+        # and should be hidden so it doesn't overlap with the primary
+        chart_err.y_axis.crosses = "max"
+        chart_err.x_axis.axId = 200
+        chart_err.x_axis.hidden = True
+        
+        chart2 += chart_err # combine the charts
+        
+        ws.add_chart(chart2, "J" + str(ws.max_row + 2))
+        
+        wb.move_sheet(ws, offset=-len(wb.sheetnames))
     wb.save(excel_path)
 
     if file_exists:
@@ -366,11 +374,12 @@ def update_master_report(log_file_paths, excel_path):
         print(f"\n✅ Master report successfully created at: {excel_path}")
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Usage: python report_updater.py <master_report.xlsx> <log_file_1.json> [<log_file_2.json> ...]")
+    if len(sys.argv) < 4:
+        print("Usage: python report_updater.py <master_report.xlsx> <log_file.json> <target_sheet_name>")
         sys.exit(1)
     
     excel_file = sys.argv[1]
-    log_files = sys.argv[2:]
+    log_files = [sys.argv[2]] # This script now handles one log at a time
+    target_sheet = sys.argv[3]
     
-    update_master_report(log_files, excel_file)
+    update_master_report(log_files, excel_file, target_sheet)
